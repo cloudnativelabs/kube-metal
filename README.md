@@ -1,5 +1,7 @@
 # kube-metal
 
+[![Join the chat at https://gitter.im/cloudnativelabs/kube-metal](https://badges.gitter.im/cloudnativelabs/kube-metal.svg)](https://gitter.im/cloudnativelabs/kube-metal?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+
 kube-metal is a [Terraform](https://www.terraform.io/) module that automates the creation of Kubernetes
 clusters and the infrastructure they run on.
 
