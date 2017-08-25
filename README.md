@@ -19,7 +19,8 @@ terraform apply
 ```
 
 You will be asked to provide a few fields like an API key, project ID, etc, then
-you're off!
+you're off! Follow the [cluster access section](#accessing-the-cluster) to use
+your new cluster.
 
 ## How It Works
 
