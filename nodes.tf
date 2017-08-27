@@ -6,13 +6,13 @@ resource "packet_device" "controller" {
   depends_on = ["packet_ssh_key.ssh"]
   count      = "${var.controller_count}"
 
-  hostname         = "${format("controller-%02d", count.index + 1)}"
+  hostname         = "${format("controller-%02d", count.index + 1)}.${var.server_domain}"
   plan             = "${var.server_type}"
   facility         = "${var.facility}"
   operating_system = "custom_ipxe"
   billing_cycle    = "hourly"
   project_id       = "${var.project_id}"
-  user_data        = "${element(data.ct_config.controller.*.rendered, count.index)}"
+  user_data        = "${data.ct_config.controller.*.rendered[count.index]}"
   ipxe_script_url  = "${var.ipxe_script_url}"
   always_pxe       = true
 }
@@ -21,13 +21,13 @@ resource "packet_device" "worker" {
   depends_on = ["packet_ssh_key.ssh"]
   count      = "${var.worker_count}"
 
-  hostname         = "${format("worker-%02d", count.index + 1)}"
+  hostname         = "${format("worker-%02d", count.index + 1)}.${var.server_domain}"
   plan             = "${var.server_type}"
   facility         = "${var.facility}"
   operating_system = "custom_ipxe"
   billing_cycle    = "hourly"
   project_id       = "${var.project_id}"
-  user_data        = "${element(data.ct_config.worker.*.rendered, count.index)}"
+  user_data        = "${data.ct_config.worker.*.rendered[count.index]}"
   ipxe_script_url  = "${var.ipxe_script_url}"
   always_pxe       = true
 }
@@ -42,15 +42,15 @@ resource "tls_private_key" "ssh" {
 }
 
 data "ct_config" "controller" {
-  count        = "${var.controller_count + var.worker_count}"
+  count        = "${var.controller_count}"
   pretty_print = true
-  content      = "${element(data.template_file.controller.*.rendered, count.index)}"
+  content      = "${data.template_file.controller.*.rendered[count.index]}"
 }
 
 data "ct_config" "worker" {
-  count        = "${var.controller_count + var.worker_count}"
+  count        = "${var.worker_count}"
   pretty_print = true
-  content      = "${element(data.template_file.worker.*.rendered, count.index)}"
+  content      = "${data.template_file.worker.*.rendered[count.index]}"
 }
 
 data "template_file" "controller" {

@@ -1,10 +1,16 @@
-data "template_file" "hosts" {
-  template = "${file("${path.module}/templates/hosts")}"
+data "template_file" "hosts_entries" {
+  count    = "${var.controller_count + var.worker_count}"
+  template = "$${hosts_entries}"
 
   vars {
-    apiserver_ip       = "${packet_device.controller.0.ipv4_public}"
-    apiserver_hostname = "${packet_device.controller.0.hostname}"
-    apiserver_fqdn     = "${packet_device.controller.0.hostname}.${var.k8s_domain_name}"
-    /* apiserver_entries  = "${formatlist(packet_device.controller_nodes.*.hostname)} */
+    hosts_entries = "${format("%v %v",
+                        lookup(module.all_networks.list[count.index * 3], "address"),
+                        element(concat(packet_device.controller.*.hostname,
+                                packet_device.worker.*.hostname), count.index))}"
   }
+}
+
+module "all_networks" {
+  source = "./flatten"
+  list   = "${concat(packet_device.controller.*.network[0], packet_device.worker.*.network[0])}"
 }

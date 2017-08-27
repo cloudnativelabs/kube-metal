@@ -1,11 +1,16 @@
-# Secure copy etcd TLS assets and kubeconfig to all nodes. Activates kubelet.service
+# Write private SSH key to file for e2e, etc
+resource "local_file" "ssh_key_private" {
+  content  = "${tls_private_key.ssh.private_key_pem}"
+  filename = "${path.module}/assets/auth/id_rsa"
+}
+
+# Secure copy etcd TLS assets and kubeconfig to all nodes.
 resource "null_resource" "copy_secrets" {
   count = "${var.controller_count + var.worker_count}"
 
   connection {
     type = "ssh"
-    host = "${element(concat(packet_device.controller.*.ipv4_public,
-                                    packet_device.worker.*.ipv4_public), count.index)}"
+    host = "${lookup(module.all_networks.list[count.index * 3], "address")}"
 
     user        = "core"
     private_key = "${tls_private_key.ssh.private_key_pem}"
@@ -15,7 +20,7 @@ resource "null_resource" "copy_secrets" {
   provisioner "remote-exec" {
     inline = [
       "sudo cp /etc/hosts /etc/hosts-backup-$(date --utc --iso-8601=seconds)",
-      "echo '${data.template_file.hosts.rendered}' | sudo tee /etc/hosts",
+      "echo '${join("\n",data.template_file.hosts_entries.*.rendered)}' | sudo tee -a /etc/hosts",
     ]
   }
 
@@ -63,6 +68,8 @@ resource "null_resource" "copy_secrets" {
     inline = [
       "sudo mkdir -p /etc/ssl/etcd/etcd",
       "sudo mkdir -p /etc/kubernetes",
+      "echo nameserver 127.0.0.53 | sudo tee -a /etc/kubernetes/resolv.conf",
+      "echo search ${var.server_domain} | sudo tee -a /etc/kubernetes/resolv.conf",
       "sudo mv etcd-client* /etc/ssl/etcd/",
       "sudo cp /etc/ssl/etcd/etcd-client-ca.crt /etc/ssl/etcd/etcd/server-ca.crt",
       "sudo mv etcd-server.crt /etc/ssl/etcd/etcd/server.crt",
@@ -83,11 +90,11 @@ resource "null_resource" "bootkube_start" {
   # Terraform only does one task at a time, so it would try to bootstrap
   # Kubernetes and Tectonic while no Kubelets are running. Ensure all nodes
   # receive a kubeconfig before proceeding with bootkube and tectonic.
-  depends_on = ["null_resource.copy_secrets"]
+  depends_on = ["null_resource.copy_secrets", "local_file.kube_router"]
 
   connection {
     type        = "ssh"
-    host        = "${packet_device.controller.0.ipv4_public}"
+    host        = "${lookup(packet_device.controller.network[0], "address")}"
     user        = "core"
     private_key = "${tls_private_key.ssh.private_key_pem}"
     timeout     = "20m"
@@ -101,6 +108,8 @@ resource "null_resource" "bootkube_start" {
   provisioner "remote-exec" {
     inline = [
       "sudo mv /home/core/kubeconfig /etc/kubernetes/kubeconfig",
+      "sudo systemctl start kubelet.service",
+      "sudo systemctl restart kubelet.path",
       "sleep 15",
       "sudo mv /home/core/assets /opt/bootkube",
       "sudo systemctl start bootkube",
@@ -115,7 +124,7 @@ resource "null_resource" "cluster_start_controller" {
 
   connection {
     type        = "ssh"
-    host        = "${element(packet_device.controller.*.ipv4_public, count.index + 1)}"
+    host        = "${lookup(module.all_networks.list[(count.index + 1) * 3], "address")}"
     user        = "core"
     private_key = "${tls_private_key.ssh.private_key_pem}"
     timeout     = "20m"
@@ -124,6 +133,8 @@ resource "null_resource" "cluster_start_controller" {
   provisioner "remote-exec" {
     inline = [
       "sudo mv /home/core/kubeconfig /etc/kubernetes/kubeconfig",
+      "sudo systemctl start kubelet.service",
+      "sudo systemctl restart kubelet.path",
     ]
   }
 }
@@ -135,7 +146,7 @@ resource "null_resource" "cluster_start_worker" {
 
   connection {
     type        = "ssh"
-    host        = "${element(packet_device.worker.*.ipv4_public, count.index)}"
+    host        = "${lookup(module.all_networks.list[(count.index + var.controller_count) * 3], "address")}"
     user        = "core"
     private_key = "${tls_private_key.ssh.private_key_pem}"
     timeout     = "20m"
@@ -144,6 +155,8 @@ resource "null_resource" "cluster_start_worker" {
   provisioner "remote-exec" {
     inline = [
       "sudo mv /home/core/kubeconfig /etc/kubernetes/kubeconfig",
+      "sudo systemctl start kubelet.service",
+      "sudo systemctl restart kubelet.path",
     ]
   }
 }
