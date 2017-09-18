@@ -7,7 +7,7 @@ module "bootkube" {
   experimental_self_hosted_etcd = "${var.experimental_self_hosted_etcd}"
 
   container_images = {
-    hyperkube = "quay.io/coreos/hyperkube:v${null_resource.kubernetes_facts.triggers.kubernetes_v_patch}_coreos.0"
+    hyperkube = "quay.io/coreos/hyperkube:v${local.kubernetes_v_patch}_coreos.0"
     etcd      = "quay.io/coreos/etcd:v3.1.8"
   }
 }
