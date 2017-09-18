@@ -84,3 +84,14 @@ variable "ca_private_key" {
   type        = "string"
   default     = ""
 }
+
+variable kube_router {
+  description = "Map of kube-router feature toggles."
+  type = "map"
+
+  default = {
+    pod_networking = true
+    service_proxy  = true
+    network_policy = true
+  }
+}

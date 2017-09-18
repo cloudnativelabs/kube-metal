@@ -1,5 +1,15 @@
-# Assets generated only when experimental self-hosted etcd is enabled
+resource "template_dir" "kube-proxy-manifests" {
+  count           = "${var.kube_router["service_proxy"] ? "0" : "1"}"
+  source_dir      = "${path.module}/resources/kube-proxy"
+  destination_dir = "${var.asset_dir}/manifests-networking"
 
+  vars {
+    hyperkube_image = "${var.container_images["hyperkube"]}"
+    pod_cidr        = "${var.pod_cidr}"
+  }
+}
+
+# Assets generated only when experimental self-hosted etcd is enabled
 resource "template_dir" "flannel-manifests" {
   count           = "${var.networking == "flannel" ? 1 : 0}"
   source_dir      = "${path.module}/resources/flannel"
